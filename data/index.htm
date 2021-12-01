@@ -1,0 +1,373 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Pool Controller</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<script src="jquery.js"></script>
+	<!-- <script src="https://code.jquery.com/jquery-3.6.0.slim.min.js" integrity="sha256-u7e5khyithlIdTpu22PHhENmPcRdFiHRjhAuHcs05RI=" crossorigin="anonymous"></script> -->
+	
+	<style>
+		@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400&display=swap');
+	</style>
+
+
+    <style type="text/css" media="screen">
+	html {
+		height: 100%;
+		box-sizing: border-box;
+		-webkit-background-size: cover;
+		-moz-background-size: cover;
+		-o-background-size: cover;
+		background-size: cover;
+		background: #70bg32;
+		background-repeat:no-repeat;
+		font-family: 'Rubik', sans-serif;
+		color:white;
+		font-size: 1em;
+		background: rgb(56, 62, 71);
+		/*background: linear-gradient(#03a9fc, #5a8499);*/
+	}
+    body {
+      margin:0;
+      padding:0;
+      border-box;
+
+    }
+    .headline {
+    	margin-top:20px;
+    	font-size: 1.5em;
+    	font-weight: 400;
+    }
+    .center {
+		margin: auto;
+		width: 350px;
+		/*border: 3px solid green;*/
+		/*padding: 10px;*/
+		text-align: center;
+	}
+	.degrees {
+		vertical-align: super;
+		font-size: smaller;
+	}
+	.temp {
+		font-size: 6em;
+		text-align: center;
+		font-weight: 300;
+	}
+	.tempSmall {
+		font-size: 2em;
+		text-align: center;
+		font-weight: 300;
+		display: inline-block;
+		color: #ccc;
+	}
+	.paddL10 {
+		padding-left:10px;
+	}
+	.paddR10 {
+		padding-right:10px;
+	}
+	.inputRow {
+		text-align: left;
+		min-height: 40px;
+		border-top: solid #7bc0e3 1px;
+		display:flex;
+		align-items:center;
+	}
+
+	.inputRow input {
+		margin-left: auto;
+	}
+	.section {
+		margin-top:20px;
+		border-top: solid #7bc0e3 3px;
+	}
+	.on {
+		color: greenyellow;
+	}
+	.off {
+		color:orangered;
+	}
+	.pending {
+		color:yellow;
+	}
+	.state {
+		font-weight: 400;
+		margin-left: auto;
+	}
+	#time {
+		margin-left: auto;
+	}
+    </style>
+
+    <style>
+	.switch {
+		margin-left: auto;
+	  position: relative;
+	  display: inline-block;
+	  width: 60px;
+	  height: 34px;
+	  float: right;
+	}
+
+	.switch input { 
+	  opacity: 0;
+	  width: 0;
+	  height: 0;
+	}
+
+	.slider {
+	  position: absolute;
+	  cursor: pointer;
+	  top: 0;
+	  left: 0;
+	  right: 0;
+	  bottom: 0;
+	  background-color: #ccc;
+	  -webkit-transition: .4s;
+	  transition: .4s;
+	}
+
+	.slider:before {
+	  position: absolute;
+	  content: "";
+	  height: 26px;
+	  width: 26px;
+	  left: 4px;
+	  bottom: 4px;
+	  background-color: white;
+	  -webkit-transition: .4s;
+	  transition: .4s;
+	}
+
+	input:checked + .slider {
+	  background-color: #2196F3;
+	}
+
+	input:focus + .slider {
+	  box-shadow: 0 0 1px #2196F3;
+	}
+
+	input:checked + .slider:before {
+	  -webkit-transform: translateX(26px);
+	  -ms-transform: translateX(26px);
+	  transform: translateX(26px);
+	}
+
+	/* Rounded sliders */
+	.slider.round {
+	  border-radius: 34px;
+	}
+
+	.slider.round:before {
+	  border-radius: 50%;
+	}
+	</style>
+	
+	<script type="text/javascript">
+	const production = false;
+	let firstLoad = true;
+
+    var ws = null;
+    function ge(s){ return document.getElementById(s);}
+    function ce(s){ return document.createElement(s);}
+    function stb(){ window.scrollTo(0, document.body.scrollHeight || document.documentElement.scrollHeight); }
+
+    function addMessage(msg) {console.log(msg);}
+
+    function timeString(hour, minute) {
+    	return ((hour < 10 ? "0" + hour : hour ) + ":" + (minute < 10 ? "0" + minute : minute ));
+    }
+
+    function updateUIState(json, all = false) {
+    	t = ge("time");
+        t.innerHTML = json.currentHour + ":" +  (json.currentMinute < 10 ? "0" + json.currentMinute : json.currentMinute);
+
+        ge("currentTemp").innerHTML =json.temp + "<span class='degrees'>&#176;</span>";
+        ge("minTemp").innerHTML =json.minTemp + "<span class='degrees'>&#176;</span> min";
+        ge("maxTemp").innerHTML =json.maxTemp + "<span class='degrees'>&#176;</span> max";
+        
+        // Pool
+        ge("poolState").classList.remove('off');
+        ge("poolState").classList.remove('on');
+        ge("poolState").classList.remove('pending');
+
+
+        if(json.poolState != json.poolCall) {
+        	ge("poolState").innerHTML = 'Pending...';
+        	ge("poolState").classList.add('pending');
+        } else if (json.poolState) {
+        	ge("poolState").innerHTML = 'Running';
+        	ge("poolState").classList.add('on');
+        } else {
+        	ge("poolState").innerHTML = 'Off';
+        	ge("poolState").classList.add('off');
+        }
+
+        ge("poolOverride").checked = json.poolOverride == 1 ? true : false;
+
+        if(all) {
+	        ge("poolOnTime").value = timeString(json.poolOnHour, json.poolOnMinute);
+	        ge("poolOffTime").value = timeString(json.poolOffHour, json.poolOffMinute);
+        }
+
+
+        // Solar
+        ge("solarState").classList.remove('off');
+        ge("solarState").classList.remove('on');
+        ge("solarState").classList.remove('pending');
+
+    	
+       if(json.solarState != json.solarCall) {
+    		ge("solarState").innerHTML = 'Pending...';
+        	ge("solarState").classList.add('pending');
+        } else if (json.solarState) {
+        	ge("solarState").innerHTML = 'Running';
+        	ge("solarState").classList.add('on');
+    	} else {
+        	ge("solarState").innerHTML = 'Off';
+        	ge("solarState").classList.add('off');
+        }
+
+        if(all) {
+	        ge("solarOverride").checked = json.solarOverride == 1 ? true : false;
+
+	        ge("solarOnTime").value =  timeString(json.solarOnHour , json.solarOnMinute);
+	        ge("solarOffTime").value = timeString(json.solarOffHour , json.solarOffMinute);
+	        ge("solarOnTemp").value = json.solarOnTemp;
+	        ge("solarOffTemp").value = json.solarOffTemp;
+
+	        ge("solarMinTempOut").innerHTML = json.solarOnTemp + '&#176;';
+	        ge("solarMaxTempOut").innerHTML = json.solarOffTemp + '&#176;';
+        }
+    }
+
+
+    function startEvents(){
+      var es = new EventSource( production ? '/events' : 'http://pool.local/events');
+      es.onopen = function(e) {
+        addMessage("Events Opened");
+      };
+      es.onerror = function(e) {
+        if (e.target.readyState != EventSource.OPEN) {
+          addMessage("Events Closed");
+        }
+      };
+      es.onmessage = function(e) {
+        addMessage("Event: " + e.data);
+      };
+      
+      es.addEventListener('status', function(e) {
+        addMessage("Event[status]: " + e.data);
+
+        var json = JSON.parse(e.data);
+        if(firstLoad) {
+	        updateUIState(json, true);
+	        firstLoad = false;
+        } else {
+        	updateUIState(json, false);
+        }
+
+      }, false);
+
+      es.addEventListener('ota', function(e) {
+        addMessage("Event[ota]: " + e.data);
+      }, false);
+    }
+    function onBodyLoad(){
+      startEvents();
+    }
+
+
+    $(function() {
+    	
+	     callApi = function(api, params) {
+	    	var url = production ? "/" : "http://pool.local/api";
+	    	fetch(url + api + "?" + $.param(params), {
+			  method: 'POST'
+			}).then(resp => {
+	    		console.log("API response", resp);
+			});
+	    };
+
+    	$("#poolOverride").change(function() {
+		    if(this.checked) {
+		        callApi("/manual/pool", {"cmd":"on"});
+		    } else {
+		    	callApi("/manual/pool", {"cmd":"off"});
+		    }
+		});
+
+    	$("#solarOverride").change(function() {
+		    if(this.checked) {
+		        callApi("/manual/solar", {"cmd":"on"});
+		    } else {
+		    	callApi("/manual/solar", {"cmd":"off"});
+		    }
+		});
+
+		$("#poolOnTime").change(function() {
+			let t = this.value.split(":");
+			callApi("/set/pool", {"cmd":"on","hour": t[0], "minute": t[1] });
+		});
+
+		$("#poolOffTime").change(function() {
+			let t = this.value.split(":");
+			callApi("/set/pool", {"cmd":"off","hour": t[0], "minute": t[1] });
+		});
+
+		$("#solarOnTime").change(function() {
+			let t = this.value.split(":");
+			callApi("/set/solar", {"cmd":"on","hour": t[0], "minute": t[1] });
+		});
+
+		$("#solarOffTime").change(function() {
+			let t = this.value.split(":");
+			callApi("/set/solar", {"cmd":"off","hour": t[0], "minute": t[1] });
+		});
+
+		$("#solarOnTemp").change(function() {
+			callApi("/set/solar", {"cmd":"min","value": this.value });
+		});
+
+		$("#solarOffTemp").change(function() {
+			callApi("/set/solar", {"cmd":"max","value": this.value });
+		});
+
+	});
+    </script>
+    
+  </head>
+  <body id="body" onload="onBodyLoad()">
+  	<div class="center">
+  		<div class="headline">Pool and Solar Controller</div>
+  		<div id="currentTemp" class="temp">XX<span class="degrees">&#176;</span></div>
+  		<div id="minTemp" class="tempSmall paddR10">XX<span class="degrees">&#176;</span> min</div>
+  		<div id="maxTemp" class="tempSmall paddL10">XX<span class="degrees">&#176;</span> max</div>
+  	</div>
+
+  	<div class="center section pool">
+  		<div class="inputRow">Pool Pump<div id="poolState" class="state">...</div></div>
+  		<div class="inputRow">Run manually<label class="switch"><input id="poolOverride" type="checkbox"><span class="slider round"></span></label></div>
+  		<div class="inputRow">Switch ON time <input id="poolOnTime" name="poolOnTime" class="hour" type="time" min="06:00" max="20:00"></div>
+		<div class="inputRow">Switch OFF time <input id="poolOffTime" name="poolOffTime" class="hour" type="time" min="06:00" max="20:00"></div>
+  	</div>
+  	<div class="center section solar">
+  		<div class="inputRow">Solar<div id="solarState" class="state">...</div></div>
+  		<div class="inputRow">Run manually<label class="switch"><input id="solarOverride" type="checkbox"><span class="slider round"></span></label></div>
+  		<div class="inputRow">Switch ON time <input id="solarOnTime" name="solarlOnTime" class="hour" type="time" min="06:00" max="20:00"></div>
+		<div class="inputRow">Switch OFF time <input id="solarOffTime" name="solarOffTime" class="hour" type="time" min="06:00" max="20:00"></div>
+		<div class="inputRow">Min Temp <input id="solarOnTemp" name="solarTempOn" type="range" min="15" max="35" oninput="this.nextElementSibling.innerHTML = this.value + '&#176;'"><div id="solarMinTempOut">XX</div></div>
+		<div class="inputRow">Max Temp <input id="solarOffTemp" name="solarTempOff" type="range" min="15" max="35" oninput="this.nextElementSibling.innerHTML = this.value + '&#176;'"><div id="solarMaxTempOut">XX</div></div>
+  	</div>
+
+  	<div class="center section clock">
+  		<div class="inputRow">Curent time<div id="time"></div></div>
+  	</div>
+  </body>
+</html>
