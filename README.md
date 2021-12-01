@@ -11,3 +11,4 @@ Features:
 - Writes settings to EEPROM
 - Pump switching time based lock out to prevent flip flops
 - Mobile UI in JS/HTML
+- Serial command interface
